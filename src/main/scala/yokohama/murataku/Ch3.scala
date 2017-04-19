@@ -1,6 +1,6 @@
 package yokohama.murataku;
 
-object Main extends App {
+object Ch3 extends App {
   sealed trait List[+A]
 
   case object Nil extends List[Nothing]
