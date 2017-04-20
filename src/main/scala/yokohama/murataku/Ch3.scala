@@ -14,7 +14,6 @@ object Ch3 extends App {
 
     def tail[A](list: List[A]): List[A] = list match {
       case Nil => Nil
-      case Cons(_, Nil) => Nil
       case Cons(a, b) => b
     }
 
@@ -32,6 +31,12 @@ object Ch3 extends App {
     def dropWhile[A](l: List[A], p: A => Boolean): List[A] = l match {
       case Nil => Nil
       case Cons(a,b) if p(a) => List.dropWhile(tail(l), p)
+      case _ => l
+    }
+
+    def dropWhileCurry[A](l: List[A])(p: A => Boolean): List[A] = l match {
+      case Nil => Nil
+      case Cons(a,b) if p(a) => List.dropWhileCurry(tail(l))(p)
       case _ => l
     }
 
@@ -74,9 +79,35 @@ object Ch3 extends App {
 
     def map[A, B](l: List[A])(m: A=>B): List[B] = 
       foldRight(l, Nil: List[B])((a, b) => Cons(m(a), b))
+
+    def head[A](l: List[A], count: Int):List[A] = (l, count) match {
+      case (_, n) if n < 0 => Nil
+      case (Nil, _) => Nil
+      case (Cons(a, b), 0) => Nil
+      case (Cons(a, b), n) => Cons(a, head(b, n-1))
+    }
+
+    def hasSubSequence[A](sup: List[A], sub: List[A]): Boolean = (sup, sub) match {
+      case (Nil, _) => false
+      case (_, Nil) => true
+      case (a, b) if length(a) < length(b) => false
+      case (Cons(x, xs), Cons(y, ys)) if x != y => hasSubSequence(xs, sub)
+      case (Cons(x, _), Cons(y, Nil)) => x == y
+      case (Cons(x, xs), Cons(y, ys)) if x == y => same(xs, head(ys, length(xs))) || hasSubSequence(xs, sub)
+      case (Cons(x, xs), _) => hasSubSequence(xs, sub)
+    }
+
+    def same[A](a: List[A], b: List[A]): Boolean = (a, b) match {
+      case (Cons(x, Nil), Cons(y, Nil)) => true
+      case (Nil, _) => false
+      case (_, Nil) => false
+      case (Cons(x, xs), Cons(y, ys)) if x != y => false
+      case (Cons(x, xs), Cons(y, ys)) if x == y => same(xs, ys)
+    }
   }
 
   println(List.dropWhile(List(2,4,6,8,7,5,6), (i: Int) => i < 5))
+  println(List.dropWhileCurry(List(2,4,6,8,7,5,6))(i => i < 5))
   println("sum:" + List.sum(List(1,2,3,4,5)))
   println("product:" + List.product(List(1,2,3,4,5)))
   println("product0:" + List.product(List(1,2,0,4,5)))
@@ -85,4 +116,17 @@ object Ch3 extends App {
   println("reverse: " + List.reverse(List(1,2,3,4,5)))
 
   println("divide by map: " + List.map(List(1,2,3,4,5))((a: Int) => a.toDouble / 2d))
+
+  println("head: " + List.head(List(1,2,3,4,5), 2))
+  println("head: " + List.head(List(1,2,3,4,5), 8))
+
+  println("same false: " + List.same(List(1,2,3,4,5), List(2,3,4)))
+  println("same true: " + List.same(List(2,3,4), List(2,3,4)))
+
+  println("subseq true: " + List.hasSubSequence(List(1), List(1)))
+  println("subseq true: " + List.hasSubSequence(List(1,2), List(1)))
+  println("subseq true: " + List.hasSubSequence(List(1,2), List(1,2)))
+  println("subseq true: " + List.hasSubSequence(List(1,2,3), List(1,2)))
+  println("subseq true: " + List.hasSubSequence(List(2,3), List.head(List(2), 2)))
+  println("subseq true: " + List.hasSubSequence(List(1,2,3,4,5), List(2,3,4)))
 }

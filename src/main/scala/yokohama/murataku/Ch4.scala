@@ -17,6 +17,19 @@ object Ch4 extends App {
       case None => ob
       case Some(a) => a
     }
+
+  }
+
+  object Option {
+    def map2[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = (a, b) match {
+      case (Some(x), Some(y)) => Some(f(x, y))
+      case (_, _) => None
+    }
+
+    def sequence[A](list: List[Option[A]]): Option[List[A]] = list match {
+      case Nil => Some(Nil)
+    }
+
   }
 
   case class Some[+A](get: A) extends Option[A]
@@ -29,4 +42,11 @@ object Ch4 extends App {
 
   println("flatMap for some: " + Some(3).flatMap(a => Some(a.toDouble / 2.0)))
   println("flatMap for none: " + none.flatMap(a => Some(a.toDouble / 2.0)))
+
+  println("map2 Some vs Some: " + Option.map2(Some(1), Some(5))(_ + _) )
+  println("map2 None vs Some: " + Option.map2(none, Some(5))((a,b)=>a+b) )
+  println("map2 None vs None: " + Option.map2(none, none)((a,b)=>a+b) )
+
+  println("sequence for Some: " + Option.sequence( List(Some(1), Some(5)) ) )
+  println("sequence for Some and None: " + Option.sequence( List(Some(1), None, Some(5)) ) )
 }
