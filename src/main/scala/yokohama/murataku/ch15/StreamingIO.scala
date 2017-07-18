@@ -34,6 +34,20 @@ sealed trait Process[I,O] {
         }
     }
 
+  def map[O2](f: O => O2): Process[I, O2] = this |> Process.lift(f)
+
+  def ++(p: => Process[I,O]): Process[I,O] = this match {
+    case Halt() => p
+    case Emit(h,t) => Emit(h, t ++ p)
+    case Await(recv) => Await(recv andThen (_ ++ p))
+  }
+
+  def flatMap[O2](f: O => Process[I, O2]): Process[I, O2] = this match {
+    case Halt() => Halt()
+    case Emit(h, t) => f(h) ++ t.flatMap(f)
+    case Await(recv) => Await(recv andThen (_.flatMap(f)))
+  }
+
 }
 
 case class Emit[I,O](head: O, tail: Process[I,O] = Halt[I,O]()) extends Process[I,O]
@@ -80,6 +94,13 @@ object Process {
   def drop[I](n: Int): Process[I,I] = 
     if (n > 0) await(i => drop(n-1))
     else lift[I,I](a => a)
+
+  def monad[I]: Monad[({type f[x] = Process[I, x]})#f] = 
+    new Monad[({type f[x] = Process[I, x]})#f] {
+      def unit[O](o: => O): Process[I, O] = Emit(o)
+      def flatMap[O,O2](p: Process[I,O])(f: O => Process[I, O2]): Process[I, O2] = p.flatMap(f)
+    }
+
 }
 
 object Runner extends App {
@@ -152,10 +173,28 @@ object Runner extends App {
   val sqrt3times: Process[Int, Double] = Process.lift(sqrt) |> Process.lift(_ + 1.0)
   sqrt3times(nums).foreach(println)
 
+  println("")
+  println("++")
+  val twice: Process[Int,Double] = Process.take(3).map(_ * 2.0)
+  val plusTen: Process[Int,Double] = Process.lift(_ + 10.0)
+  (twice ++ plusTen)(nums) foreach println
+
+  println("")
+  println("flatMap")
 
 
 
 
+}
 
+/** Monad / Functor **/
 
+trait Functor[F[_]] {
+  def map[A,B](fa: F[A])(f: A => B): F[B]
+}
+trait Monad[M[_]] extends Functor[M] {
+  def unit[A](a: => A): M[A]
+  def flatMap[A,B](ma: M[A])(f: A => M[B]): M[B]
+
+  def map[A,B](fa: M[A])(f: A => B): M[B] = flatMap(fa)(a => unit(f(a)))
 }
