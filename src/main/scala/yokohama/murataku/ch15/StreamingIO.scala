@@ -48,6 +48,16 @@ sealed trait Process[I,O] {
     case Await(recv) => Await(recv andThen (_.flatMap(f)))
   }
 
+  def zip[O2](o2: Process[I, O2]): Process[I, (O, O2)] = (this, o2) match {
+    case (Halt(), _) => Halt()
+    case (_, Halt()) => Halt()
+    case (Emit(h1, t1), Emit(h2,t2)) => Emit((h1,h2), t1.zip(t2))
+    // TODO これじゃだめらしい。なんで？
+    case (Await(recv), _) => Await((oa: Option[I]) => recv.apply(oa).zip(o2))
+    case (_, Await(recv)) => Await((oa: Option[I]) => this.zip(recv(oa)))
+  }
+
+  def zipWithIndex: Process[I, (O, Int)] = this zip Process.count
 }
 
 case class Emit[I,O](head: O, tail: Process[I,O] = Halt[I,O]()) extends Process[I,O]
@@ -180,11 +190,8 @@ object Runner extends App {
   (twice ++ plusTen)(nums) foreach println
 
   println("")
-  println("flatMap")
-
-
-
-
+  println("zipWithIndex")
+  Process.lift((a: Int) => a + 10000).zipWithIndex.apply(nums).foreach(println)
 }
 
 /** Monad / Functor **/
@@ -198,3 +205,14 @@ trait Monad[M[_]] extends Functor[M] {
 
   def map[A,B](fa: M[A])(f: A => B): M[B] = flatMap(fa)(a => unit(f(a)))
 }
+
+ trait IO { self =>
+   def run: Unit
+   def ++(io: IO): IO = new IO {
+     def run = { self.run; io.run }
+   }
+ }
+ object IO {
+   def empty: IO = new IO { def run = () }
+ }
+
